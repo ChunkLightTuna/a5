@@ -40,7 +40,7 @@ private class Formula private constructor(
     }
 
     fun log() {
-        println("   clauses:\n$clauses\n\n\n   entangledClauses:")
+        println("entangledClauses:")
 
         entangledClauses.forEachIndexed { i, listOfClauses ->
             if (i != 0) {
@@ -122,16 +122,17 @@ private fun dll(formula: Formula): Assignment {
 private fun buildFormula(inputStream: InputStream): Formula {
 
     val clauses = arrayListOf<List<Int>>()
+    val variables = hashSetOf<Int>()
     var clause = mutableListOf<Int>()
     var numVariables = 0
-//    var numClauses = 0
+    var numClauses = 0
 
     inputStream.bufferedReader().forEachLine {
         if (!it.startsWith('c', false)) {
             val split = it.trim().split(Regex(" +"))
             if (split[0] == "p") {
                 numVariables = split[2].toInt()
-//                numClauses = split[3].toInt()
+                numClauses = split[3].toInt()
             } else {
                 split.forEach {
                     if (it == "0") {
@@ -139,11 +140,14 @@ private fun buildFormula(inputStream: InputStream): Formula {
                         clause = mutableListOf()
                     } else {
                         clause.add(it.toInt())
+                        variables.add(Math.abs(it.toInt()))
                     }
                 }
             }
         }
     }
 
+    assert(numClauses == clauses.size)
+    assert(numVariables == variables.size)
     return Formula(clauses.toTypedArray(), numVariables)
 }
