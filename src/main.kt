@@ -7,13 +7,13 @@ import java.util.*
  */
 
 fun main(args: Array<String>) {
-    var alg = ::mcv
+    var alg = ::dll
 
     args.forEach {
         if (it.endsWith(".cnf")) {
             System.setIn(FileInputStream(it))
-        } else if (it == "mcv") {
-            alg = ::mcv
+//        } else if (it == "dll") {
+//            alg = ::dll
         }
     }
 
@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
 
 }
 
-data class Formula(val clauses: HashSet<Clause>, private val numVariables: Int, val numClauses: Int) {
+private data class Formula(val clauses: HashSet<ArrayList<Int>>, val numVariables: Int, val numClauses: Int) {
     override fun toString(): String {
         return "$numVariables $numClauses\n"
     }
@@ -40,15 +40,10 @@ data class Formula(val clauses: HashSet<Clause>, private val numVariables: Int, 
     }
 }
 
-data class Clause(val clause: ArrayList<Int>, var satisfied: Int = -1) {
+//private data class Clause(val clause: ArrayList<Int>)
 
-    //satisfied is the index, but we probably want the value in most cases
-    override fun toString(): String {
-        return "${if (satisfied < 0 || satisfied > clause.size) 0 else clause[satisfied]}$clause"
-    }
-}
-
-data class Assignment(val variables: ArrayList<Boolean> = arrayListOf()/*, val valid: Boolean = false*/) {
+private class Assignment(val variables: BooleanArray, val clauses: BooleanArray) {
+    constructor(formula: Formula) : this(BooleanArray(formula.numVariables), BooleanArray(formula.numClauses))
 
     fun print(formula: Formula): String {
         val sb = StringBuilder("s cnf ${if (formula.valid(this)) "1" else "0"} $formula\n")
@@ -61,7 +56,7 @@ data class Assignment(val variables: ArrayList<Boolean> = arrayListOf()/*, val v
     }
 }
 
-fun mcv(formula: Formula): Assignment {
+private fun dll(formula: Formula): Assignment {
 
 
     fun inner(assignment: Assignment): Assignment {
@@ -69,18 +64,19 @@ fun mcv(formula: Formula): Assignment {
             assignment
         } else if (formula.valid(assignment)) {
             //branch!
-            Assignment()
+//            assignment.variables[assignment.variables]
+            Assignment(formula)
         } else {
             assignment
         }
     }
 
-    return inner(Assignment())
+    return inner(Assignment(formula))
 }
 
 private fun buildFormula(inputStream: InputStream): Formula {
 
-    val clauses: HashSet<Clause> = hashSetOf()
+    val clauses: HashSet<ArrayList<Int>> = hashSetOf()
     var clause = arrayListOf<Int>()
     var numVariables = 0
     var numClauses = 0
@@ -95,7 +91,7 @@ private fun buildFormula(inputStream: InputStream): Formula {
             } else {
                 split.forEach {
                     if (it == "0") {
-                        clauses.add(Clause(clause))
+                        clauses.add(clause)
                         clause = arrayListOf<Int>()
                     } else {
                         clause.add(it.toInt())
