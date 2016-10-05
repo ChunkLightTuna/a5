@@ -1,4 +1,7 @@
+import com.sun.org.apache.xpath.internal.operations.Bool
+import java.io.BufferedReader
 import java.io.FileInputStream
+import java.io.InputStream
 import java.util.HashSet
 
 /**
@@ -16,49 +19,17 @@ fun main(args: Array<String>) {
         }
     }
 
-    val reader = System.`in`.bufferedReader()
+    val domain = buildState(System.`in`)
 
-    var line = reader.readLine()
+    assert(domain.assert())
 
-    while (line[0] == 'c') {
-        line = reader.readLine()
-    }
+    val sol = alg(domain)
 
-    val split = line.trim().split(" ")
-
-    println("header! $line | var=${split[2].toInt()} cla=${split[3].toInt()}")
-    val domain = Domain(numVariables = split[2].toInt(), numClauses = split[3].toInt())
-
-    var i = reader.read()
-    val clause: MutableCollection<Int> = mutableListOf()
-
-    while (i != -1) {
-        val ch = i.toChar()
-
-        if (ch == 'c') {            //skip comments
-            reader.readLine()
-
-        } else if (ch == '0') {      //next
-            domain.add(clause)
-            clause.clear()
-
-        } else if (ch == '-') {  //add
-            clause.add(Character.getNumericValue(reader.read().toChar()) * -1)
-
-        } else if (ch.isDigit()) {  //add
-            clause.add(Character.getNumericValue(ch))
-        }
-
-        i = reader.read()
-    }
-    domain.assert()
-
-    val sol = alg()
+    println(sol)
 
 }
 
-
-class Domain(val numVariables: Int, val numClauses: Int, val clauses: HashSet<Collection<Int>> = hashSetOf(), private val variables: HashSet<Int> = hashSetOf()) {
+class State(val numVariables: Int, val numClauses: Int, val clauses: HashSet<Collection<Int>> = hashSetOf(), private val variables: HashSet<Int> = hashSetOf()) {
     fun add(clause: Collection<Int>) {
         assert(clause.size > 0 && clause.size <= 3, { ->
             "added clause of incorrect size. Expected 1-3, but found ${clause.size}"
@@ -67,23 +38,51 @@ class Domain(val numVariables: Int, val numClauses: Int, val clauses: HashSet<Co
         clause.forEach { variables.add(Math.abs(it)) }
     }
 
-    fun assert() {
-        kotlin.assert(numClauses == clauses.size, { ->
-            "wrong # of clauses. Expected $numClauses, but found ${clauses.size}"
-        })
-        kotlin.assert(numVariables == variables.size, { ->
-            "wrong # of variables.  Expected $numVariables, but found ${variables.size}"
-        })
-
-        println("V Expected: $numVariables V Actual: ${variables.size}")
-        println("C Expected: $numClauses Actual: ${clauses.size}")
-
+    fun assert(): Boolean {
+        val bool = numClauses == clauses.size && numVariables == variables.size
+        val sb = StringBuilder()
+        clauses.forEach { sb.append(if (clauses.first() == it) it else " $it") }
+        println(sb)
+        if (!bool) {
+            println("V Expected: $numVariables V Actual: ${variables.size}")
+            println("C Expected: $numClauses Actual: ${clauses.size}")
+        }
         variables.clear()
+        return bool
     }
 }
 
-data class State(val a: Int) {
+fun mcv(state: State): String {
+
+    return state.toString()
 }
 
-fun mcv() {
+private fun buildState(inputStream: InputStream): State {
+    val reader = inputStream.bufferedReader()
+
+    var line = reader.readLine()
+    while (line[0] == 'c') {
+        line = reader.readLine()
+    }
+
+    val split = line.trim().split(" ")
+    val domain = State(numVariables = split[2].toInt(), numClauses = split[3].toInt())
+    var clause: MutableCollection<Int> = mutableListOf()
+
+    reader.forEachLine {
+        if (!it.startsWith('c', false)) {
+            println("<$it>")
+            it.trim().split(Regex(" +")).forEach {
+                if (it != "0") {
+                    clause.add(it.toInt())
+                } else {
+                    domain.add(clause)
+                    clause = mutableListOf()
+                }
+            }
+        }
+        line = readLine()
+    }
+
+    return domain
 }
