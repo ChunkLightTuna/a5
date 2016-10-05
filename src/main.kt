@@ -29,7 +29,12 @@ fun main(args: Array<String>) {
 
 }
 
-class State(val numVariables: Int, val numClauses: Int, val clauses: HashSet<Collection<Int>> = hashSetOf(), private val variables: HashSet<Int> = hashSetOf()) {
+class State(
+        val clauses: HashSet<Collection<Int>> = hashSetOf(),
+        private val numVariables: Int,
+        private val numClauses: Int,
+        private val variables: HashSet<Int> = hashSetOf()) {
+
     fun add(clause: Collection<Int>) {
         assert(clause.size > 0 && clause.size <= 3, { ->
             "added clause of incorrect size. Expected 1-3, but found ${clause.size}"
@@ -71,7 +76,6 @@ private fun buildState(inputStream: InputStream): State {
 
     reader.forEachLine {
         if (!it.startsWith('c', false)) {
-            println("<$it>")
             it.trim().split(Regex(" +")).forEach {
                 if (it != "0") {
                     clause.add(it.toInt())
@@ -81,7 +85,6 @@ private fun buildState(inputStream: InputStream): State {
                 }
             }
         }
-        line = readLine()
     }
 
     return domain
