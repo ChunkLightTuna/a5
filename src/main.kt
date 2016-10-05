@@ -2,7 +2,7 @@ import com.sun.org.apache.xpath.internal.operations.Bool
 import java.io.BufferedReader
 import java.io.FileInputStream
 import java.io.InputStream
-import java.util.HashSet
+import java.util.*
 
 /**
  * Assignment 5: SAT Solver
@@ -19,73 +19,74 @@ fun main(args: Array<String>) {
         }
     }
 
-    val domain = buildState(System.`in`)
+    val formula = buildFormula(System.`in`)
 
-    assert(domain.assert())
+    val sol = alg(formula)
 
-    val sol = alg(domain)
-
-    println(sol)
+    println(sol.print(formula))
 
 }
 
-class State(
-        val clauses: HashSet<Collection<Int>> = hashSetOf(),
-        private val numVariables: Int,
-        private val numClauses: Int,
-        private val variables: HashSet<Int> = hashSetOf()) {
-
-    fun add(clause: Collection<Int>) {
-        assert(clause.size > 0 && clause.size <= 3, { ->
-            "added clause of incorrect size. Expected 1-3, but found ${clause.size}"
-        })
-        clauses.add(clause)
-        clause.forEach { variables.add(Math.abs(it)) }
+data class Formula(val clauses: HashSet<Clause>, val numVariables: Int, val numClauses: Int) {
+    override fun toString(): String {
+        return "$numVariables, $numClauses\n$clauses"
     }
 
-    fun assert(): Boolean {
-        val bool = numClauses == clauses.size && numVariables == variables.size
-        val sb = StringBuilder()
-        clauses.forEach { sb.append(if (clauses.first() == it) it else " $it") }
-        println(sb)
-        if (!bool) {
-            println("V Expected: $numVariables V Actual: ${variables.size}")
-            println("C Expected: $numClauses Actual: ${clauses.size}")
+    fun solved(assignment: Assignment): Boolean {
+        return false
+    }
+}
+
+data class Clause(val clause: ArrayList<Int>, var satisfied: Int = 0) {
+    override fun toString(): String {
+        return "$satisfied$clause"
+    }
+}
+
+data class Assignment(val assignments: ArrayList<Boolean>) {
+
+    fun print(formula: Formula): String {
+        val sb = StringBuilder("s cnf ${if (formula.solved(this)) "1" else "0"} ${formula.numVariables}${formula.numClauses}\n")
+        assignments.forEachIndexed { i, b ->
+            sb.append("v ${if (!b) "-" else ""}${i + 1}\n")
         }
-        variables.clear()
-        return bool
+        return sb.toString()
     }
 }
 
-fun mcv(state: State): String {
-
-    return state.toString()
+fun mcv(clauses: Formula): Assignment {
+    fun inner(assignment: Assignment): Assignment {
+        return assignment
+    }
+    return Assignment(arrayListOf<Boolean>())
 }
 
-private fun buildState(inputStream: InputStream): State {
-    val reader = inputStream.bufferedReader()
+private fun buildFormula(inputStream: InputStream): Formula {
 
-    var line = reader.readLine()
-    while (line[0] == 'c') {
-        line = reader.readLine()
-    }
+    val clauses: HashSet<Clause> = hashSetOf()
+    var clause = arrayListOf<Int>()
+    var numVariables = 0
+    var numClauses = 0
 
-    val split = line.trim().split(" ")
-    val domain = State(numVariables = split[2].toInt(), numClauses = split[3].toInt())
-    var clause: MutableCollection<Int> = mutableListOf()
 
-    reader.forEachLine {
+    inputStream.bufferedReader().forEachLine {
         if (!it.startsWith('c', false)) {
-            it.trim().split(Regex(" +")).forEach {
-                if (it != "0") {
-                    clause.add(it.toInt())
-                } else {
-                    domain.add(clause)
-                    clause = mutableListOf()
+            val split = it.trim().split(Regex(" +"))
+            if (split[0] == "p") {
+                numVariables = split[2].toInt()
+                numClauses = split[3].toInt()
+            } else {
+                split.forEach {
+                    if (it == "0") {
+                        clauses.add(Clause(clause))
+                        clause = arrayListOf<Int>()
+                    } else {
+                        clause.add(it.toInt())
+                    }
                 }
             }
         }
     }
 
-    return domain
+    return Formula(clauses, numVariables, numClauses)
 }
