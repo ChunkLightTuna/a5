@@ -1,5 +1,3 @@
-import com.sun.org.apache.xpath.internal.operations.Bool
-import java.io.BufferedReader
 import java.io.FileInputStream
 import java.io.InputStream
 import java.util.*
@@ -20,6 +18,7 @@ fun main(args: Array<String>) {
     }
 
     val formula = buildFormula(System.`in`)
+//    println(formula)
 
     val sol = alg(formula)
 
@@ -27,38 +26,56 @@ fun main(args: Array<String>) {
 
 }
 
-data class Formula(val clauses: HashSet<Clause>, val numVariables: Int, val numClauses: Int) {
+data class Formula(val clauses: HashSet<Clause>, private val numVariables: Int, val numClauses: Int) {
     override fun toString(): String {
-        return "$numVariables, $numClauses\n$clauses"
+        return "$numVariables $numClauses\n"
     }
 
-    fun solved(assignment: Assignment): Boolean {
+    fun valid(assignment: Assignment): Boolean {
         return false
     }
-}
 
-data class Clause(val clause: ArrayList<Int>, var satisfied: Int = 0) {
-    override fun toString(): String {
-        return "$satisfied$clause"
+    fun complete(assignment: Assignment): Boolean {
+        return assignment.variables.size == numVariables
     }
 }
 
-data class Assignment(val assignments: ArrayList<Boolean>) {
+data class Clause(val clause: ArrayList<Int>, var satisfied: Int = -1) {
+
+    //satisfied is the index, but we probably want the value in most cases
+    override fun toString(): String {
+        return "${if (satisfied < 0 || satisfied > clause.size) 0 else clause[satisfied]}$clause"
+    }
+}
+
+data class Assignment(val variables: ArrayList<Boolean> = arrayListOf()/*, val valid: Boolean = false*/) {
 
     fun print(formula: Formula): String {
-        val sb = StringBuilder("s cnf ${if (formula.solved(this)) "1" else "0"} ${formula.numVariables}${formula.numClauses}\n")
-        assignments.forEachIndexed { i, b ->
+        val sb = StringBuilder("s cnf ${if (formula.valid(this)) "1" else "0"} $formula\n")
+
+        variables.forEachIndexed { i, b ->
             sb.append("v ${if (!b) "-" else ""}${i + 1}\n")
         }
+
         return sb.toString()
     }
 }
 
-fun mcv(clauses: Formula): Assignment {
+fun mcv(formula: Formula): Assignment {
+
+
     fun inner(assignment: Assignment): Assignment {
-        return assignment
+        return if (formula.complete(assignment)) {
+            assignment
+        } else if (formula.valid(assignment)) {
+            //branch!
+            Assignment()
+        } else {
+            assignment
+        }
     }
-    return Assignment(arrayListOf<Boolean>())
+
+    return inner(Assignment())
 }
 
 private fun buildFormula(inputStream: InputStream): Formula {
