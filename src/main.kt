@@ -24,11 +24,11 @@ fun main(args: Array<String>) {
     println(DLL(container))
 }
 
-private data class Formula(val clauses: MutableList<MutableSet<Int>>, val assignment: HashSet<Int> = hashSetOf()) {
+private data class Formula(var clauses: List<MutableSet<Int>>, val assignment: HashSet<Int> = hashSetOf()) {
 
     //data classes normal copy constructor does not work urrrrrrrrrrrrgh
     constructor(φ: Formula) : this(
-            clauses = Array(φ.clauses.size, { i -> mutableSetOf<Int>() }).toMutableList(),
+            clauses = Array(φ.clauses.size, { i -> mutableSetOf<Int>() }).toList(),
             assignment = hashSetOf()) {
 
         φ.clauses.forEachIndexed { i, mutableSet ->
@@ -37,7 +37,6 @@ private data class Formula(val clauses: MutableList<MutableSet<Int>>, val assign
                 clauses[i].add(int)
             }
         }
-
         assignment.addAll(φ.assignment)
 
     }
@@ -51,58 +50,16 @@ private data class Formula(val clauses: MutableList<MutableSet<Int>>, val assign
         return false
     }
 
-    fun assign(value: Int, sign: Boolean) {
-
-        val newVariable: Int
-        val notVariable: Int
-        val newValue = if (sign) 1 else -1
-
-        if (value < 0 && newValue == -1) {
-            newVariable = value
-        } else if (value < 0 && newValue == 1) {
-            newVariable = value * -1
-        } else {
-            newVariable = value * newValue
+    fun assign(cur: Int) {
+        val partitioned = clauses.partition { it.contains(cur) }
+        if(partitioned.first.size > 0) {
+            clauses = partitioned.second.toMutableList()
+            assignment.add(cur)
         }
-        notVariable = -newVariable
 
-//TODO
-        val iter = clauses.iterator()
-        while (iter.hasNext()) {
-            val clause = iter.next()
-
-            var i = 0
-            while (i < clause.size) {
-                val it = clause.elementAt(i)
-                if (it == newVariable) {
-                    /* remove this clause */
-                    assignment.add(newVariable)
-                    iter.remove()
-                    break
-                } else if (it == notVariable) {
-                    clause.remove(notVariable)
-                    i--
-                }
-                i++
-            }
+        clauses.forEach {
+            it.remove(-1 * cur)
         }
-//TODO
-//
-//        clauses.forEach {
-//            val clause = it
-//            clause.forEach inner@{
-//                if (it == newVariable) {
-//                    assignment.add(newVariable)
-//                    clauses.remove(clause)
-//                    return@inner
-//                } else if (it == notVariable) {
-//                    assignment.add(value * -1)
-//                    clause.remove(notVariable)
-//                }
-//            }
-//        }
-
-
     }
 
     fun weDidIt(): Boolean {
@@ -123,7 +80,7 @@ private data class Formula(val clauses: MutableList<MutableSet<Int>>, val assign
 
         var allTheSingleLadies = allTheSingleLadies()
         while (allTheSingleLadies.count() > 0) {
-            allTheSingleLadies.forEach { assign(it, it > 0);`Oh oh oh`++ }
+            allTheSingleLadies.forEach { assign(it);`Oh oh oh`++ }
             allTheSingleLadies = allTheSingleLadies()
         }/* Now put your hands up, oh, oh, oh
 
@@ -174,11 +131,11 @@ private fun DLL(container: Container): Solution {
             val negative = Formula(φ)
 
             count++
-            φ.assign(head, true)
+            φ.assign(head)
             if (inner(φ)) return true
 
             count++
-            negative.assign(head, false)
+            negative.assign(-1 * head)
             return inner(negative)
         }
     }
