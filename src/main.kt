@@ -7,28 +7,23 @@ import java.util.HashSet
  */
 
 fun main(args: Array<String>) {
-//    var alg = ::DLL
-
     args.forEach {
         if (it.endsWith(".cnf")) {
             System.setIn(FileInputStream(it))
-//        } else if (it == "DLL") {
-//            alg = ::DLL
         }
     }
 
     val container = buildFormula(System.`in`)
-
     System.`in`.close()
 
-    println(DLL(container))
+    println(dll(container))
 }
 
-private data class Formula(var clauses: List<MutableSet<Int>>, val assignment: HashSet<Int> = hashSetOf()) {
+private data class Formula(var clauses: List<MutableList<Int>>, val assignment: HashSet<Int> = hashSetOf()) {
 
     //data classes normal copy constructor does not work urrrrrrrrrrrrgh
     constructor(φ: Formula) : this(
-            clauses = Array(φ.clauses.size, { i -> mutableSetOf<Int>() }).toList(),
+            clauses = Array(φ.clauses.size, { i -> mutableListOf<Int>() }).toList(),
             assignment = hashSetOf()) {
 
         φ.clauses.forEachIndexed { i, mutableSet ->
@@ -52,7 +47,7 @@ private data class Formula(var clauses: List<MutableSet<Int>>, val assignment: H
 
     fun assign(cur: Int) {
         val partitioned = clauses.partition { it.contains(cur) }
-        if(partitioned.first.size > 0) {
+        if (partitioned.first.size > 0) {
             clauses = partitioned.second.toMutableList()
             assignment.add(cur)
         }
@@ -62,17 +57,8 @@ private data class Formula(var clauses: List<MutableSet<Int>>, val assignment: H
         }
     }
 
-    fun weDidIt(): Boolean {
-        return clauses.isEmpty()
-    }
-
-    fun nextOnTheChoppingBlock(): Int {
-        return clauses.first().first()
-    }
-
     fun allTheSingleLadies(): List<Int> {
-        return if (clauses.count() == 0) listOf()
-        else clauses.filter { it.size == 1 }.flatMap { it }
+        return clauses.filter { it.size == 1 }.flatMap { it }
     }
 
     fun unitPropagate(): Int {
@@ -113,7 +99,7 @@ private data class Solution(
     }
 }
 
-private fun DLL(container: Container): Solution {
+private fun dll(container: Container): Solution {
 
     var count = 0
     val assignment = mutableListOf<Int>()
@@ -121,13 +107,13 @@ private fun DLL(container: Container): Solution {
     fun inner(φ: Formula): Boolean {
 
         count += φ.unitPropagate()
-        return if (φ.weDidIt()) {
+        return if (φ.clauses.isEmpty()) {
             assignment.addAll(φ.assignment)
             true
         } else if (φ.gameOverMan()) {
             false
         } else {
-            val head = φ.nextOnTheChoppingBlock()
+            val head = φ.clauses.first().first()
             val negative = Formula(φ)
 
             count++
@@ -148,17 +134,15 @@ private fun DLL(container: Container): Solution {
             count,
             container.numVariables,
             container.numClauses)
-
-//    return Solution(inner(φ).assignment.toList(), count)
 }
 
 private data class Container(val formula: Formula, val numVariables: Int, val numClauses: Int)
 
 private fun buildFormula(inputStream: InputStream): Container {
 
-    val clauses = mutableListOf<MutableSet<Int>>()
+    val clauses = mutableListOf<MutableList<Int>>()
     val variables = hashSetOf<Int>()
-    var clause = mutableSetOf<Int>()
+    var clause = mutableListOf<Int>()
     var numVariables = 0
     var numClauses = 0
 
@@ -172,7 +156,7 @@ private fun buildFormula(inputStream: InputStream): Container {
                 split.forEach {
                     if (it == "0") {
                         clauses.add(clause)
-                        clause = mutableSetOf()
+                        clause = mutableListOf()
                     } else {
                         clause.add(it.toInt())
                         variables.add(Math.abs(it.toInt()))
