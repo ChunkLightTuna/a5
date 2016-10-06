@@ -17,51 +17,92 @@ fun main(args: Array<String>) {
         }
     }
 
-    val formula = buildFormula(System.`in`)
+    val container = buildFormula(System.`in`)
+
     System.`in`.close()
 
-    val sol = DLL(formula)
-
-    sol.assignment.forEach(::println)
+    println(DLL(container))
 }
 
-private data class Clause(val variables: MutableSet<Int>) {
-    fun size(): Int {
-        return variables.size
+private data class Formula(val clauses: MutableList<MutableSet<Int>>, val assignment: HashSet<Int> = hashSetOf()) {
+
+    //data classes normal copy constructor does not work urrrrrrrrrrrrgh
+    constructor(φ: Formula) : this(
+            clauses = Array(φ.clauses.size, { i -> mutableSetOf<Int>() }).toMutableList(),
+            assignment = hashSetOf()) {
+
+        φ.clauses.forEachIndexed { i, mutableSet ->
+            mutableSet.forEach {
+                val int = it
+                clauses[i].add(int)
+            }
+        }
+
+        assignment.addAll(φ.assignment)
+
     }
 
-    fun isEmpty(): Boolean {
-        return variables.isEmpty()
-    }
-
-    override fun toString(): String {
-        return variables.toString()
-    }
-}
-
-
-private data class Formula(val clauses: List<Clause>, val assignment: HashSet<Int> = hashSetOf()) {
     fun gameOverMan(): Boolean {
         clauses.forEach {
-            if (it.size() == 0) {
+            if (it.size == 0) {
                 return true
             }
         }
         return false
     }
 
-    fun assign(value: Int) {
-        clauses.forEach {
-            val variables = it.variables
-            variables.forEach inner@{
-                if (value == it) {
-                    assignment.add(value)
-                } else if (value * -1 == it) {
-                    assignment.add(value * -1)
-                    variables.remove(value)
+    fun assign(value: Int, sign: Boolean) {
+
+        val newVariable: Int
+        val notVariable: Int
+        val newValue = if (sign) 1 else -1
+
+        if (value < 0 && newValue == -1) {
+            newVariable = value
+        } else if (value < 0 && newValue == 1) {
+            newVariable = value * -1
+        } else {
+            newVariable = value * newValue
+        }
+        notVariable = -newVariable
+
+//TODO
+        val iter = clauses.iterator()
+        while (iter.hasNext()) {
+            val clause = iter.next()
+
+            var i = 0
+            while (i < clause.size) {
+                val it = clause.elementAt(i)
+                if (it == newVariable) {
+                    /* remove this clause */
+                    assignment.add(newVariable)
+                    iter.remove()
+                    break
+                } else if (it == notVariable) {
+                    clause.remove(notVariable)
+                    i--
                 }
+                i++
             }
         }
+//TODO
+//
+//        clauses.forEach {
+//            val clause = it
+//            clause.forEach inner@{
+//                if (it == newVariable) {
+//                    assignment.add(newVariable)
+//                    clauses.remove(clause)
+//                    return@inner
+//                } else if (it == notVariable) {
+//                    assignment.add(value * -1)
+//                    clause.remove(notVariable)
+//                }
+//            }
+//        }
+
+
     }
 
     fun weDidIt(): Boolean {
@@ -69,18 +110,20 @@ private data class Formula(val clauses: List<Clause>, val assignment: HashSet<In
     }
 
     fun nextOnTheChoppingBlock(): Int {
-        return clauses.first().variables.first()
+        return clauses.first().first()
     }
 
     fun allTheSingleLadies(): List<Int> {
-        return clauses.filter { it.size() == 1 }.flatMap { it.variables }
+        return if (clauses.count() == 0) listOf()
+        else clauses.filter { it.size == 1 }.flatMap { it }
     }
 
-    fun unitPropagate() {
+    fun unitPropagate(): Int {
+        var `Oh oh oh` = 0
 
         var allTheSingleLadies = allTheSingleLadies()
-        while (allTheSingleLadies.isNotEmpty()) {
-            allTheSingleLadies.forEach { assign(it) }
+        while (allTheSingleLadies.count() > 0) {
+            allTheSingleLadies.forEach { assign(it, it > 0);`Oh oh oh`++ }
             allTheSingleLadies = allTheSingleLadies()
         }/* Now put your hands up, oh, oh, oh
 
@@ -93,46 +136,70 @@ private data class Formula(val clauses: List<Clause>, val assignment: HashSet<In
             If you liked it then you should have put a ring on it
             If you liked it then you shoulda put a ring on it
             Don't be mad once you see that he want it
-            If you liked it then you shoulda put a ring on it
-            Oh, oh, oh*/
+            If you liked it then you shoulda put a ring on it*/
+        return `Oh oh oh`
     }
 }
 
-private data class Solution(val assignment: List<Int>, val satisfiable: Boolean, val count: Int)
+private data class Solution(
+        val assignment: List<Int>,
+        val satisfiable: Boolean,
+        val count: Int,
+        val numVariables: Int,
+        val numClauses: Int) {
 
-private fun DLL(φ: Formula): Solution {
+    override fun toString(): String {
+        val sb = StringBuilder("s cnf ${if (satisfiable) "1" else "0"} $numVariables $numClauses\n")
+        assignment.forEach { sb.append("v $it\n") }
+        sb.append("$count branching nodes explored.")
+        return sb.toString()
+    }
+}
+
+private fun DLL(container: Container): Solution {
+
     var count = 0
-    var assignment = mutableListOf<Int>()
+    val assignment = mutableListOf<Int>()
 
     fun inner(φ: Formula): Boolean {
 
-        φ.unitPropagate()
-
+        count += φ.unitPropagate()
         return if (φ.weDidIt()) {
+            assignment.addAll(φ.assignment)
             true
         } else if (φ.gameOverMan()) {
             false
         } else {
-            false
-//            branch!
-//            formula.variables[formula.variables]
-//            Assignment(formula)
+            val head = φ.nextOnTheChoppingBlock()
+            val negative = Formula(φ)
+
+            count++
+            φ.assign(head, true)
+            if (inner(φ)) return true
+
+            count++
+            negative.assign(head, false)
+            return inner(negative)
         }
     }
 
-    val satisfiable = inner(φ)
-    println("assignment:")
-    assignment.forEach(::println)
+    val satisfiable = inner(container.formula)
 
-    return Solution(assignment, satisfiable, count)
+    return Solution(
+            assignment,
+            satisfiable,
+            count,
+            container.numVariables,
+            container.numClauses)
 
 //    return Solution(inner(φ).assignment.toList(), count)
 }
 
+private data class Container(val formula: Formula, val numVariables: Int, val numClauses: Int)
 
-private fun buildFormula(inputStream: InputStream): Formula {
+private fun buildFormula(inputStream: InputStream): Container {
 
-    val clauses = mutableListOf<Clause>()
+    val clauses = mutableListOf<MutableSet<Int>>()
     val variables = hashSetOf<Int>()
     var clause = mutableSetOf<Int>()
     var numVariables = 0
@@ -147,7 +214,7 @@ private fun buildFormula(inputStream: InputStream): Formula {
             } else {
                 split.forEach {
                     if (it == "0") {
-                        clauses.add(Clause(clause))
+                        clauses.add(clause)
                         clause = mutableSetOf()
                     } else {
                         clause.add(it.toInt())
@@ -160,5 +227,5 @@ private fun buildFormula(inputStream: InputStream): Formula {
 
     assert(numClauses == clauses.size)
     assert(numVariables == variables.size)
-    return Formula(clauses)
+    return Container(Formula(clauses), numVariables, numClauses)
 }
