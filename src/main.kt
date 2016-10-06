@@ -1,129 +1,140 @@
 import java.io.FileInputStream
 import java.io.InputStream
-import java.util.*
+import java.util.HashSet
 
 /**
  * Assignment 5: SAT Solver
  */
 
 fun main(args: Array<String>) {
-    var alg = ::dll
+//    var alg = ::DLL
 
     args.forEach {
         if (it.endsWith(".cnf")) {
             System.setIn(FileInputStream(it))
-//        } else if (it == "dll") {
-//            alg = ::dll
+//        } else if (it == "DLL") {
+//            alg = ::DLL
         }
     }
 
     val formula = buildFormula(System.`in`)
-//    println(formula)
+    System.`in`.close()
 
-    formula.log()
-    val sol = alg(formula)
+    val sol = DLL(formula)
 
-    println(sol.print(formula))
-
+    sol.assignment.forEach(::println)
 }
 
-private class Formula private constructor(
-        private val clauses: Array<List<Int>>,
-        val numVariables: Int,
-        val numClauses: Int,
-        private val entangledClauses: Array<List<Int>>) {
-    constructor(clauses: Array<List<Int>>, numVariables: Int) : this(clauses, numVariables, clauses.size, genLookUpTable(clauses, numVariables)) {
+private data class Clause(val variables: MutableSet<Int>) {
+    fun size(): Int {
+        return variables.size
+    }
+
+    fun isEmpty(): Boolean {
+        return variables.isEmpty()
     }
 
     override fun toString(): String {
-        return "$numVariables ${clauses.size}\n"
+        return variables.toString()
     }
+}
 
-    fun log() {
-        println("entangledClauses:")
 
-        entangledClauses.forEachIndexed { i, listOfClauses ->
-            if (i != 0) {
-                println("variable $i is in the following clauses $listOfClauses")
+private data class Formula(val clauses: List<Clause>, val assignment: HashSet<Int> = hashSetOf()) {
+    fun gameOverMan(): Boolean {
+        clauses.forEach {
+            if (it.size() == 0) {
+                return true
             }
         }
+        return false
     }
 
-    fun getEntangledClauses(variable: Int): List<Int> {
-        assert(variable > 0 && variable <= numVariables)
-        return entangledClauses[variable]
-    }
-
-    companion object {
-        private fun genLookUpTable(clauses: Array<List<Int>>, numVariables: Int): Array<List<Int>> {
-            val mutable = Array(numVariables + 1, { x -> mutableListOf<Int>() })
-            clauses.forEachIndexed { i, list ->
-                list.forEach {
-                    mutable[Math.abs(it)].add(i + 1)
+    fun assign(value: Int) {
+        clauses.forEach {
+            val variables = it.variables
+            variables.forEach inner@{
+                if (value == it) {
+                    assignment.add(value)
+                } else if (value * -1 == it) {
+                    assignment.add(value * -1)
+                    variables.remove(value)
                 }
             }
-
-            return Array(mutable.size, { i -> mutable[i].toList() })
         }
+    }
+
+    fun weDidIt(): Boolean {
+        return clauses.isEmpty()
+    }
+
+    fun nextOnTheChoppingBlock(): Int {
+        return clauses.first().variables.first()
+    }
+
+    fun allTheSingleLadies(): List<Int> {
+        return clauses.filter { it.size() == 1 }.flatMap { it.variables }
+    }
+
+    fun unitPropagate() {
+
+        var allTheSingleLadies = allTheSingleLadies()
+        while (allTheSingleLadies.isNotEmpty()) {
+            allTheSingleLadies.forEach { assign(it) }
+            allTheSingleLadies = allTheSingleLadies()
+        }/* Now put your hands up, oh, oh, oh
+
+            'Cause if you liked it then you should have put a ring on it
+            If you liked it then you shoulda put a ring on it
+            Don't be mad once you see that he want it
+            If you liked it then you shoulda put a ring on it
+            Oh, oh, oh
+
+            If you liked it then you should have put a ring on it
+            If you liked it then you shoulda put a ring on it
+            Don't be mad once you see that he want it
+            If you liked it then you shoulda put a ring on it
+            Oh, oh, oh*/
     }
 }
 
-//private data class Clause(val clause: ArrayList<Int>)
+private data class Solution(val assignment: List<Int>, val satisfiable: Boolean, val count: Int)
 
-private class Assignment(private val vSign: BooleanArray, private val vAssigned: BooleanArray, private val clauseSat: BooleanArray) {
-    constructor(formula: Formula) : this(BooleanArray(formula.numVariables + 1), BooleanArray(formula.numVariables + 1), BooleanArray(formula.numClauses + 1))
+private fun DLL(φ: Formula): Solution {
+    var count = 0
+    var assignment = mutableListOf<Int>()
 
+    fun inner(φ: Formula): Boolean {
 
-    fun print(formula: Formula): String {
-        val sb = StringBuilder("s cnf ${if (complete()) "1" else "0"} $formula")
-        vSign.drop(1).forEachIndexed { i, b ->
-            sb.append("v ${if (!b) "-" else ""}${i + 1}\n")
-        }
+        φ.unitPropagate()
 
-        return sb.toString()
-    }
-
-    fun assign(formula: Formula, variable: Int) {
-        assert(variable != 0)
-
-        //indices of unsatisfied
-        clauseSat.filterIndexed { i, b -> b && i != 0 }
-
-        val sign = variable > 0
-    }
-
-    fun complete(): Boolean {
-        clauseSat.drop(1).forEach {
-            if (it == false) return false
-        }
-        return true
-    }
-
-}
-
-private fun dll(formula: Formula): Assignment {
-
-
-    fun inner(assignment: Assignment): Assignment {
-        return if (assignment.complete()) {
-            assignment
-//        } else if (formula.valid(assignment)) {
-//            //branch!
-//            assignment.variables[assignment.variables]
-//            Assignment(formula)
+        return if (φ.weDidIt()) {
+            true
+        } else if (φ.gameOverMan()) {
+            false
         } else {
-            assignment
+            false
+//            branch!
+//            formula.variables[formula.variables]
+//            Assignment(formula)
         }
     }
 
-    return inner(Assignment(formula))
+    val satisfiable = inner(φ)
+    println("assignment:")
+    assignment.forEach(::println)
+
+    return Solution(assignment, satisfiable, count)
+
+//    return Solution(inner(φ).assignment.toList(), count)
 }
+
 
 private fun buildFormula(inputStream: InputStream): Formula {
 
-    val clauses = arrayListOf<List<Int>>()
+    val clauses = mutableListOf<Clause>()
     val variables = hashSetOf<Int>()
-    var clause = mutableListOf<Int>()
+    var clause = mutableSetOf<Int>()
     var numVariables = 0
     var numClauses = 0
 
@@ -136,8 +147,8 @@ private fun buildFormula(inputStream: InputStream): Formula {
             } else {
                 split.forEach {
                     if (it == "0") {
-                        clauses.add(clause)
-                        clause = mutableListOf()
+                        clauses.add(Clause(clause))
+                        clause = mutableSetOf()
                     } else {
                         clause.add(it.toInt())
                         variables.add(Math.abs(it.toInt()))
@@ -149,5 +160,5 @@ private fun buildFormula(inputStream: InputStream): Formula {
 
     assert(numClauses == clauses.size)
     assert(numVariables == variables.size)
-    return Formula(clauses.toTypedArray(), numVariables)
+    return Formula(clauses)
 }
