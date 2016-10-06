@@ -22,18 +22,13 @@ fun main(args: Array<String>) {
 private data class Formula(var clauses: List<MutableList<Int>>, val assignment: HashSet<Int> = hashSetOf()) {
 
     //data classes normal copy constructor does not work urrrrrrrrrrrrgh
-    constructor(φ: Formula) : this(
-            clauses = Array(φ.clauses.size, { i -> mutableListOf<Int>() }).toList(),
-            assignment = hashSetOf()) {
-
-        φ.clauses.forEachIndexed { i, mutableSet ->
-            mutableSet.forEach {
-                val int = it
-                clauses[i].add(int)
+    constructor(φ: Formula) : this(clauses = Array(φ.clauses.size, { i -> mutableListOf<Int>() }).toList()) {
+        φ.clauses.forEachIndexed { i, list ->
+            list.forEach {
+                clauses[i].add(it)
             }
         }
         assignment.addAll(φ.assignment)
-
     }
 
     fun gameOverMan(): Boolean {
@@ -45,7 +40,7 @@ private data class Formula(var clauses: List<MutableList<Int>>, val assignment: 
         return false
     }
 
-    fun assign(cur: Int) {
+    fun setVariable(cur: Int) {
         val partitioned = clauses.partition { it.contains(cur) }
         if (partitioned.first.size > 0) {
             clauses = partitioned.second.toMutableList()
@@ -61,12 +56,10 @@ private data class Formula(var clauses: List<MutableList<Int>>, val assignment: 
         return clauses.filter { it.size == 1 }.flatMap { it }
     }
 
-    fun unitPropagate(): Int {
-        var `Oh oh oh` = 0
-
+    fun unitPropagate() {
         var allTheSingleLadies = allTheSingleLadies()
         while (allTheSingleLadies.count() > 0) {
-            allTheSingleLadies.forEach { assign(it);`Oh oh oh`++ }
+            allTheSingleLadies.forEach { setVariable(it) }
             allTheSingleLadies = allTheSingleLadies()
         }/* Now put your hands up, oh, oh, oh
 
@@ -80,7 +73,6 @@ private data class Formula(var clauses: List<MutableList<Int>>, val assignment: 
             If you liked it then you shoulda put a ring on it
             Don't be mad once you see that he want it
             If you liked it then you shoulda put a ring on it*/
-        return `Oh oh oh`
     }
 }
 
@@ -106,7 +98,7 @@ private fun dll(container: Container): Solution {
 
     fun inner(φ: Formula): Boolean {
 
-        count += φ.unitPropagate()
+        φ.unitPropagate()
         return if (φ.clauses.isEmpty()) {
             assignment.addAll(φ.assignment)
             true
@@ -117,11 +109,11 @@ private fun dll(container: Container): Solution {
             val negative = Formula(φ)
 
             count++
-            φ.assign(head)
+            φ.setVariable(head)
             if (inner(φ)) return true
 
             count++
-            negative.assign(-1 * head)
+            negative.setVariable(-1 * head)
             return inner(negative)
         }
     }
